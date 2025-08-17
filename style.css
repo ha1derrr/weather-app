@@ -15,7 +15,7 @@
 body {
   margin: 0;
   font-family: var(--font-primary);
-  overflow: hidden;
+  overflow: hidden; /* PREVENTS HORIZONTAL SCROLLING */
 }
 
 .scape-container {
@@ -28,6 +28,7 @@ body {
     var(--sky-bottom-day)
   );
   transition: background 1s ease-in-out;
+  overflow-x: hidden; /* ENSURES CHILD ELEMENTS DON'T BREAK LAYOUT */
 }
 
 /* --- Diorama Layers --- */
