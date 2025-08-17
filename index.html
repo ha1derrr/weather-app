@@ -3,16 +3,75 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elemental Forecast</title>
     <link rel="stylesheet" href="style.css" />
-    <script src="script.js"></script>
-    <title>Document</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Roboto:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
+    <script src="script.js" defer></script>
   </head>
   <body>
-    <main class="weather-container">
-      <input type="text" class="search" />
-      <button id="search-btn">Search</button>
-      <div class="location-name"></div>
-      <div class="weather-display"></div>
-    </main>
+    <div class="weather-container" id="weather-container">
+      <header class="search-area">
+        <input type="text" id="search-box" placeholder="Search for a city..." />
+        <button id="search-btn">Search</button>
+      </header>
+
+      <main id="weather-display" class="hidden">
+        <div class="location-info">
+          <h1 id="location-name">City, Country</h1>
+          <p id="local-time">Day, Time</p>
+        </div>
+
+        <div class="main-content">
+          <div class="elemental-icon-container"></div>
+          <div class="current-weather">
+            <p class="temperature"><span id="temp-c">--</span>°C</p>
+            <p class="weather-story" id="weather-story">
+              The forecast is being summoned...
+            </p>
+          </div>
+        </div>
+
+        <div class="details-grid">
+          <div class="detail-card">
+            <h4>Feels Like</h4>
+            <p><span id="feels-like">--</span>°C</p>
+          </div>
+          <div class="detail-card">
+            <h4>Wind</h4>
+            <p><span id="wind-kph">--</span> kph</p>
+          </div>
+          <div class="detail-card">
+            <h4>Humidity</h4>
+            <p><span id="humidity">--</span>%</p>
+          </div>
+          <div class="detail-card">
+            <h4>Air Quality</h4>
+            <p><span id="aqi">--</span></p>
+          </div>
+        </div>
+
+        <div class="astro-info">
+          <div class="astro-card">
+            <h4>Sunrise</h4>
+            <p id="sunrise">--:-- AM</p>
+          </div>
+          <div class="astro-card">
+            <h4>Sunset</h4>
+            <p id="sunset">--:-- PM</p>
+          </div>
+        </div>
+
+        <div class="forecast-container" id="forecast-container"></div>
+      </main>
+
+      <div id="loader" class="loader">
+        <p>Summoning the Elements...</p>
+      </div>
+    </div>
   </body>
 </html>
