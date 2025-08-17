@@ -1,242 +1,162 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const BASE_URL = "https://api.weatherapi.com/v1";
   const WEATHER_API_KEY = "1561b5da9dcd4ffe9ce91111251708";
+  const BASE_URL = "https://api.weatherapi.com/v1";
 
   // DOM Elements
+  const scapeContainer = document.getElementById("scape-container");
+  const celestialBody = document.getElementById("celestial-body");
+  const cloudLayer = document.getElementById("cloud-layer");
+  const precipitationLayer = document.getElementById("precipitation-layer");
   const searchBox = document.getElementById("search-box");
   const searchBtn = document.getElementById("search-btn");
-  const weatherContainer = document.getElementById("weather-container");
   const weatherDisplay = document.getElementById("weather-display");
   const loader = document.getElementById("loader");
 
-  // --- EVENT LISTENERS ---
-  searchBtn.addEventListener("click", () => handleSearch());
-  searchBox.addEventListener("keyup", (e) => {
-    if (e.key === "Enter") handleSearch();
-  });
+  // Alert Banner Elements
+  const alertBanner = document.getElementById("alert-banner");
+  const alertText = document.getElementById("alert-text");
+  const alertClose = document.getElementById("alert-close");
 
-  // --- INITIALIZATION ---
-  // Try to get user's location on page load
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          fetchWeather(`${latitude},${longitude}`);
-        },
-        () => {
-          // If user denies location, default to a major city
-          fetchWeather("London");
-        }
-      );
-    } else {
-      fetchWeather("London");
-    }
-  };
+  // --- Event Listeners ---
+  searchBtn.addEventListener("click", handleSearch);
+  searchBox.addEventListener(
+    "keyup",
+    (e) => e.key === "Enter" && handleSearch()
+  );
+  alertClose.addEventListener("click", () =>
+    alertBanner.classList.add("hidden")
+  );
 
-  // --- API CALLS ---
-  const fetchWeather = async (query) => {
+  // --- Initial Fetch ---
+  navigator.geolocation.getCurrentPosition(
+    (pos) => fetchWeather(`${pos.coords.latitude},${pos.coords.longitude}`),
+    () => fetchWeather("London") // Default fallback
+  );
+
+  // --- Core Functions ---
+  async function fetchWeather(query) {
     showLoader();
-    const url = `${BASE_URL}/forecast.json?key=${WEATHER_API_KEY}&q=${query}&days=5&aqi=yes&alerts=no`;
-
+    const url = `${BASE_URL}/forecast.json?key=${WEATHER_API_KEY}&q=${query}&days=1&aqi=no&alerts=yes`;
     try {
       const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`City not found (${response.status})`);
-      }
+      if (!response.ok)
+        throw new Error(`Location not found (${response.status})`);
       const data = await response.json();
       updateUI(data);
     } catch (error) {
       alert(error.message);
-      hideLoader(false); // Hide loader without showing content
+      hideLoader(false);
     }
-  };
+  }
 
-  // --- UI UPDATES ---
-  const updateUI = (data) => {
-    const { current, location, forecast } = data;
-    const theme = getElementalTheme(current.condition.code);
+  function updateUI(data) {
+    const { current, location, forecast, alerts } = data;
 
-    // 1. Apply Theme
-    weatherContainer.className = "weather-container"; // Reset classes
-    weatherContainer.classList.add(theme);
+    // Update Scene
+    updateScene(current, location);
 
-    // 2. Update Location & Time
-    document.getElementById(
-      "location-name"
-    ).textContent = `${location.name}, ${location.country}`;
-    document.getElementById("local-time").textContent = formatDateTime(
-      location.localtime_epoch
-    );
-
-    // 3. Update Elemental Icon
-    updateElementalIcon(theme);
-
-    // 4. Update Current Weather and Story
+    // Update Text Info
+    document.getElementById("location-name").textContent = location.name;
+    document.getElementById("condition-text").textContent =
+      current.condition.text;
     document.getElementById("temp-c").textContent = Math.round(current.temp_c);
-    document.getElementById("weather-story").textContent =
-      generateWeatherStory(data);
-
-    // 5. Update Details Grid
     document.getElementById("feels-like").textContent = Math.round(
       current.feelslike_c
     );
     document.getElementById("wind-kph").textContent = current.wind_kph;
     document.getElementById("humidity").textContent = current.humidity;
-    document.getElementById("aqi").textContent = getAqiDescription(
-      current.air_quality["us-epa-index"]
-    );
+    document.getElementById("uv-index").textContent = current.uv;
 
-    // 6. Update Astro Info
-    document.getElementById("sunrise").textContent =
-      forecast.forecastday[0].astro.sunrise;
-    document.getElementById("sunset").textContent =
-      forecast.forecastday[0].astro.sunset;
-
-    // 7. Update Forecast
-    const forecastContainer = document.getElementById("forecast-container");
-    forecastContainer.innerHTML = ""; // Clear previous forecast
-    forecast.forecastday.slice(1, 5).forEach((day) => {
-      // Show next 4 days
-      const forecastCard = document.createElement("div");
-      forecastCard.className = "forecast-card";
-      forecastCard.innerHTML = `
-                <h4>${formatDay(day.date_epoch)}</h4>
-                <img src="${day.day.condition.icon}" alt="${
-        day.day.condition.text
-      }">
-                <p class="temp-range">${Math.round(
-                  day.day.maxtemp_c
-                )}° / ${Math.round(day.day.mintemp_c)}°</p>
-            `;
-      forecastContainer.appendChild(forecastCard);
-    });
+    // Handle Alerts
+    if (alerts.alert.length > 0) {
+      alertText.textContent = alerts.alert[0].headline;
+      alertBanner.classList.remove("hidden");
+    } else {
+      alertBanner.classList.add("hidden");
+    }
 
     hideLoader(true);
-  };
+  }
 
-  const getElementalTheme = (code) => {
-    // Weather condition codes from WeatherAPI documentation
-    if ([1000].includes(code)) return "theme-fire"; // Sunny
-    if (
-      [
-        1063, 1072, 1150, 1153, 1180, 1183, 1186, 1189, 1192, 1195, 1240, 1243,
-        1246, 1273, 1276,
-      ].includes(code)
-    )
-      return "theme-water"; // Rain/Thunder
-    if (
-      [
-        1066, 1069, 1168, 1171, 1198, 1201, 1204, 1207, 1210, 1213, 1216, 1219,
-        1222, 1225, 1237, 1249, 1252, 1255, 1258, 1261, 1264, 1279, 1282,
-      ].includes(code)
-    )
-      return "theme-water"; // Snow/Sleet
-    if ([1030, 1135, 1147].includes(code)) return "theme-air"; // Mist/Fog
-    return "theme-earth"; // Default to cloudy/overcast
-  };
-
-  const updateElementalIcon = (theme) => {
-    const container = document.querySelector(".elemental-icon-container");
-    container.innerHTML = ""; // Clear previous icon
-    let iconHTML = "";
-
-    switch (theme) {
-      case "theme-fire":
-        iconHTML = '<div class="sun"></div>';
-        break;
-      case "theme-water":
-        iconHTML = `
-                    <div class="cloud"></div>
-                    <div class="rain">
-                        <div class="drop"></div><div class="drop"></div>
-                        <div class="drop"></div><div class="drop"></div>
-                    </div>`;
-        break;
-      case "theme-air":
-        iconHTML = `
-                    <div class="fog-layer layer-1"></div>
-                    <div class="fog-layer layer-2"></div>`;
-        break;
-      case "theme-earth":
-        iconHTML = '<div class="earthy-cloud"></div>';
-        break;
-    }
-    container.innerHTML = iconHTML;
-  };
-
-  const generateWeatherStory = (data) => {
-    const { current, forecast, location } = data;
-    const condition = current.condition.text.toLowerCase();
-    let story = `In ${
-      location.name
-    }, the elements are shaping a day of ${condition}. The air, holding a temperature of ${Math.round(
-      current.temp_c
-    )}°C, actually feels closer to ${Math.round(current.feelslike_c)}°C. `;
-    story += `A ${
-      current.wind_kph > 15 ? "brisk" : "gentle"
-    } wind whispers from the ${current.wind_dir}. `;
-    story += `As twilight approaches, the sun will set at ${forecast.forecastday[0].astro.sunset}, painting the sky.`;
-    return story;
-  };
-
-  const getAqiDescription = (index) => {
-    switch (index) {
-      case 1:
-        return "Good";
-      case 2:
-        return "Moderate";
-      case 3:
-        return "Unhealthy for sensitive";
-      case 4:
-        return "Unhealthy";
-      case 5:
-        return "Very Unhealthy";
-      case 6:
-        return "Hazardous";
-      default:
-        return "N/A";
-    }
-  };
-
-  // --- HELPERS ---
-  const handleSearch = () => {
-    const query = searchBox.value.trim();
-    if (query) {
-      fetchWeather(query);
-      searchBox.value = "";
+  function updateScene(current, location) {
+    // 1. Day/Night Cycle
+    scapeContainer.className = "scape-container"; // Reset
+    if (current.is_day) {
+      scapeContainer.classList.add("is-day");
+      celestialBody.className = "celestial-body sun";
     } else {
-      alert("Please enter a city name.");
+      scapeContainer.classList.add("is-night");
+      celestialBody.className = "celestial-body moon";
     }
-  };
 
-  const formatDateTime = (epoch) => {
-    const date = new Date(epoch * 1000);
-    return date.toLocaleDateString(undefined, {
-      weekday: "long",
-      hour: "numeric",
-      minute: "numeric",
-      hour12: true,
-    });
-  };
+    // Animate sun/moon position
+    const localTime = new Date(location.localtime_epoch * 1000);
+    const hours = localTime.getHours() + localTime.getMinutes() / 60;
+    const percentOfDay = (hours - 5) / 15; // Simplified path from ~5am to 8pm
+    const xPos = 100 * percentOfDay;
+    const yPos = 50 - 50 * Math.sin(Math.PI * percentOfDay);
+    celestialBody.style.left = `${xPos}vw`;
+    celestialBody.style.top = `${yPos}vh`;
 
-  const formatDay = (epoch) => {
-    const date = new Date(epoch * 1000);
-    return date.toLocaleDateString(undefined, { weekday: "short" });
-  };
+    // 2. Clouds
+    cloudLayer.innerHTML = "";
+    const cloudCount = current.cloud / 20; // More clouds if cloudier
+    for (let i = 0; i < cloudCount; i++) {
+      createCloud();
+    }
 
-  const showLoader = () => {
-    loader.classList.remove("hidden");
+    // 3. Precipitation
+    precipitationLayer.innerHTML = "";
+    if (current.condition.text.toLowerCase().includes("rain")) {
+      createPrecipitation("rain", 70);
+    } else if (current.condition.text.toLowerCase().includes("snow")) {
+      createPrecipitation("snow", 70);
+    }
+  }
+
+  // --- Element Creation ---
+  function createCloud() {
+    const cloud = document.createElement("div");
+    cloud.className = "cloud";
+    cloud.style.top = `${Math.random() * 30}%`;
+    cloud.style.left = `${Math.random() * 100 - 20}%`;
+    cloud.style.animationDuration = `${Math.random() * 40 + 40}s`;
+    cloud.style.transform = `scale(${Math.random() * 0.5 + 0.8})`;
+    cloudLayer.appendChild(cloud);
+  }
+
+  function createPrecipitation(type, count) {
+    for (let i = 0; i < count; i++) {
+      const particle = document.createElement("div");
+      if (type === "rain") {
+        particle.className = "rain-drop";
+        particle.style.left = `${Math.random() * 100}vw`;
+        particle.style.animationDuration = `${Math.random() * 0.2 + 0.3}s`;
+        particle.style.animationDelay = `${Math.random() * 2}s`;
+      } else if (type === "snow") {
+        particle.className = "snowflake";
+        particle.style.left = `${Math.random() * 100}vw`;
+        particle.style.animationDuration = `${Math.random() * 5 + 5}s`;
+        particle.style.animationDelay = `${Math.random() * 5}s`;
+        particle.style.opacity = Math.random();
+      }
+      precipitationLayer.appendChild(particle);
+    }
+  }
+
+  // --- Helpers ---
+  function handleSearch() {
+    const query = searchBox.value.trim();
+    if (query) fetchWeather(query);
+  }
+
+  function showLoader() {
+    loader.style.display = "block";
     weatherDisplay.classList.add("hidden");
-  };
+  }
 
-  const hideLoader = (showContent) => {
-    loader.classList.add("hidden");
-    if (showContent) {
-      weatherDisplay.classList.remove("hidden");
-    }
-  };
-
-  // --- START THE APP ---
-  getUserLocation();
+  function hideLoader(showContent) {
+    loader.style.display = "none";
+    if (showContent) weatherDisplay.classList.remove("hidden");
+  }
 });
